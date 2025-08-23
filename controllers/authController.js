@@ -8,19 +8,36 @@ async function register(req, res) {
   try {
     const { nome, email, senha } = req.body;
 
+    // 1. Validação de campos obrigatórios
     if (!nome || !email || !senha) {
       return res.status(400).json({ error: 'Campos obrigatórios: nome, email, senha' });
     }
 
+    // 2. Rejeitar campos extras
+    const camposValidos = ['nome', 'email', 'senha'];
+    const camposRecebidos = Object.keys(req.body);
+    const camposInvalidos = camposRecebidos.filter(c => !camposValidos.includes(c));
+    if (camposInvalidos.length > 0) {
+      return res.status(400).json({
+        error: `Campos inválidos no payload: ${camposInvalidos.join(', ')}`
+      });
+    }
+
+    // 3. Validar se o email já existe
     const existente = await usuariosRepo.findByEmail(email);
     if (existente) {
       return res.status(400).json({ error: 'Email já em uso' });
     }
 
-    if (senha.length < 8) {
-      return res.status(400).json({ error: 'Senha deve ter no mínimo 8 caracteres' });
+    // 4. Validação da senha com regex (mínimo 8 caracteres, maiúscula, minúscula, número e especial)
+    const senhaValida = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+    if (!senhaValida.test(senha)) {
+      return res.status(400).json({
+        error: 'Senha deve ter no mínimo 8 caracteres, incluindo uma letra minúscula, uma maiúscula, um número e um caractere especial.'
+      });
     }
 
+    // 5. Criptografar senha e salvar usuário
     const hashed = await bcrypt.hash(senha, 10);
     const novo = await usuariosRepo.create({ nome, email, senha: hashed });
 
