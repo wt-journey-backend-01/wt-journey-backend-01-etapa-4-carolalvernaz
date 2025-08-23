@@ -1,10 +1,5 @@
-# Instruções para Rodar o Projeto - Etapa 3
+# Instruções – Etapa 4 (Autenticação e Segurança)
 
-## Subir o banco de dados com Docker
+## 1) Subir banco com Docker
+```bash
 docker-compose up -d
-
-## Executar migrations
-npx knex migrate:latest
-
-## Rodar seeds
-npx knex seed:run
