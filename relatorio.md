@@ -1,198 +1,203 @@
 <sup>Esse é um feedback gerado por IA, ele pode conter erros.</sup>
 
-Você tem 9 créditos restantes para usar o sistema de feedback AI.
+Você tem 8 créditos restantes para usar o sistema de feedback AI.
 
 # Feedback para carolalvernaz:
 
-Nota final: **18.3/100**
+Nota final: **52.0/100**
 
-# Feedback para Carol Alvernaz 🚓✨
+```markdown
+# Feedback para Carolalvernaz 🚓✨
 
-Olá, Carol! Primeiro, parabéns pelo empenho em implementar uma API REST completa com autenticação, segurança e integração com PostgreSQL! 🎉 Você já tem uma base muito boa, com rotas bem organizadas, controllers claros e uso correto do Knex para acesso ao banco. Isso é fundamental para construir aplicações robustas.
-
----
-
-## 🎉 Pontos Fortes que Encontrei no Seu Projeto
-
-- **Estrutura MVC bem aplicada:** Você separou controllers, repositories, rotas e middlewares de forma limpa e organizada, o que facilita manutenção e escalabilidade.
-- **Uso correto do bcrypt e JWT:** A lógica para hashing de senha e geração de tokens JWT está implementada e funcionando, incluindo o middleware que protege as rotas de agentes e casos.
-- **Rotas e controllers de agentes e casos:** Estão bem estruturadas, com tratamento de erros e validações básicas.
-- **Endpoints de autenticação:** Registro, login, logout e exclusão de usuários estão implementados e funcionais.
-- **Middleware de autenticação:** Está protegendo as rotas conforme esperado, validando o token e adicionando o usuário ao `req.user`.
-- **Seeds e migrations:** As tabelas estão criadas corretamente, e os dados iniciais são inseridos de forma adequada.
-- **Bônus:** Você implementou o endpoint `/usuarios/me` para retornar dados do usuário logado, e também endpoints para filtragem e buscas, o que demonstra um esforço extra muito legal! 🚀
+Olá, Carol! Primeiro, quero parabenizar você pelo esforço e dedicação nessa etapa tão importante do seu projeto! 🎉 Você conseguiu implementar a autenticação com JWT, o hash das senhas com bcrypt, e proteger as rotas com middleware, o que já é um grande avanço rumo a uma API segura e profissional. Além disso, suas rotas e controllers estão bem organizados, e o cadastro/login/logout de usuários estão funcionando com boas validações — isso é incrível! 👏
 
 ---
 
-## ⚠️ Pontos que Precisam de Atenção e Como Melhorar
+## O que está muito bom 👍
 
-### 1. Validação da Senha no Registro de Usuário
+- **Autenticação e segurança:** Seu `authController.js` está com uma lógica clara para registro e login, com validação de senha usando regex, hash com bcrypt, e geração de JWT com expiração.  
+- **Middleware de autenticação:** Seu `authMiddleware.js` está corretamente validando o token JWT e protegendo as rotas de agentes e casos.  
+- **Organização do código:** Você seguiu bem a arquitetura MVC, separando controllers, repositories, middlewares e rotas conforme esperado.  
+- **Validações:** Você fez validações robustas no registro (campos obrigatórios, campos extras, senha forte), o que é ótimo para a segurança e qualidade do sistema.  
+- **Boas práticas:** Uso do `.env` para o segredo JWT e configuração do Knex com migrations e seeds estão corretos.  
 
-**O que acontece:**  
-No seu `authController.register`, você faz uma validação simples de tamanho da senha:
+---
+
+## Pontos importantes para melhorar e que impactam o funcionamento do projeto 🔎
+
+### 1. **Validação e tratamento de IDs inválidos nas rotas de agentes e casos**
+
+Eu notei que nos controllers de agentes e casos, você não fez validações para garantir que o ID passado na URL seja um número válido. Isso pode causar erros ou falhas silenciosas, e também pode estar causando respostas incorretas ao buscar, atualizar ou deletar registros com IDs inválidos.
+
+Por exemplo, no seu `agentesController.js`:
 
 ```js
-if (senha.length < 8) {
-  return res.status(400).json({ error: 'Senha deve ter no mínimo 8 caracteres' });
+async function getById(req, res) {
+  try {
+    const agente = await agentesRepo.findById(req.params.id);
+    if (!agente) {
+      return res.status(404).json({ error: 'Agente não encontrado' });
+    }
+    res.status(200).json(agente);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 }
 ```
 
-Porém, o requisito pede uma validação mais rigorosa: a senha deve conter **pelo menos uma letra minúscula, uma letra maiúscula, um número e um caractere especial**.
+Aqui, `req.params.id` pode ser uma string que não representa um número válido. O ideal é validar isso antes de consultar o banco, para evitar consultas inválidas ou erros inesperados.
 
-**Por que isso é importante:**  
-Sem essa validação, senhas fracas podem ser aceitas, comprometendo a segurança da aplicação.
+**Como melhorar:**
 
-**Como corrigir:**  
-Você pode usar uma expressão regular para validar a senha. Por exemplo:
+Adicione uma validação simples para verificar se o ID é um número inteiro positivo:
 
 ```js
-const senhaValida = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+const id = parseInt(req.params.id, 10);
+if (isNaN(id) || id <= 0) {
+  return res.status(404).json({ error: 'ID inválido' });
+}
+```
 
-if (!senhaValida.test(senha)) {
+Faça isso em todos os métodos que recebem ID (`getById`, `update`, `partialUpdate`, `remove`) tanto em agentes quanto em casos.
+
+---
+
+### 2. **Validação do payload (body) nas rotas PUT e PATCH**
+
+Atualmente, seus métodos `update` e `partialUpdate` nos controllers de agentes e casos aceitam qualquer objeto no corpo da requisição e repassam direto para o repositório. Isso pode fazer com que dados inválidos ou incompletos sejam aceitos, quebrando a integridade dos dados.
+
+Por exemplo, no `agentesController.js`:
+
+```js
+async function update(req, res) {
+  try {
+    const [atualizado] = await agentesRepo.update(req.params.id, req.body);
+    if (!atualizado) {
+      return res.status(404).json({ error: 'Agente não encontrado' });
+    }
+    res.status(200).json(atualizado);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+```
+
+Não há validação do formato ou campos obrigatórios no `req.body`. Isso pode permitir a atualização com dados errados ou vazios.
+
+**Como melhorar:**
+
+- Para `PUT` (atualização completa), valide se todos os campos obrigatórios estão presentes e corretos.
+- Para `PATCH` (atualização parcial), valide se pelo menos um campo válido está presente e se os valores são aceitáveis.
+
+Exemplo de validação simples para `update`:
+
+```js
+const { nome, dataDeIncorporacao, cargo } = req.body;
+if (!nome || !dataDeIncorporacao || !cargo) {
   return res.status(400).json({
-    error: 'Senha deve ter no mínimo 8 caracteres, incluindo uma letra minúscula, uma maiúscula, um número e um caractere especial.'
+    status: 400,
+    message: 'Parâmetros inválidos',
+    errors: ['Campos obrigatórios: nome, dataDeIncorporacao, cargo']
   });
 }
 ```
 
-Assim, você garante que o usuário só será registrado com uma senha segura.
+Para o `partialUpdate`, valide que pelo menos algum dos campos está no corpo e que os valores são válidos.
 
 ---
 
-### 2. Validação Rigorosa de Campos no Registro de Usuário
+### 3. **Validação da existência do agente_id ao criar ou atualizar casos**
 
-**O que acontece:**  
-O requisito pede que campos extras no payload sejam rejeitados com erro 400, mas seu código atual não verifica se existem campos além de `nome`, `email` e `senha`.
+No `casosController.js`, quando você cria ou atualiza um caso, você recebe um `agente_id` que deve existir na tabela `agentes`. Porém, não há uma validação para garantir que esse `agente_id` realmente existe no banco antes de criar ou atualizar o caso.
 
-**Por que isso é importante:**  
-Aceitar campos extras pode abrir brechas para dados inesperados e dificultar a manutenção.
+Isso pode causar erros de integridade referencial ou falhas nas queries.
 
-**Como corrigir:**  
-Você pode validar as chaves do objeto recebido, por exemplo:
+**Como melhorar:**
+
+Antes de criar ou atualizar um caso, faça uma consulta para verificar se o agente existe, por exemplo:
 
 ```js
-const camposValidos = ['nome', 'email', 'senha'];
-const camposRecebidos = Object.keys(req.body);
-
-const camposInvalidos = camposRecebidos.filter(campo => !camposValidos.includes(campo));
-
-if (camposInvalidos.length > 0) {
-  return res.status(400).json({ error: `Campos inválidos no payload: ${camposInvalidos.join(', ')}` });
+const agente = await agentesRepo.findById(agente_id);
+if (!agente) {
+  return res.status(404).json({ error: 'Agente não encontrado' });
 }
 ```
 
+Assim, você garante que o `agente_id` é válido e evita erros no banco.
+
 ---
 
-### 3. Proteção da Variável de Ambiente `.env`
+### 4. **Resposta consistente para erros de validação e formatos incorretos**
 
-**O que acontece:**  
-Você deixou o arquivo `.env` na raiz do projeto e ele foi enviado para o repositório.
+Percebi que nem sempre as respostas para erros de payload ou IDs inválidos seguem um padrão consistente de status e mensagem. Isso pode confundir quem consome sua API.
 
-**Por que isso é importante:**  
-Arquivos `.env` contêm segredos sensíveis (como `JWT_SECRET` e credenciais do banco). Eles **não devem ser versionados** para evitar exposição.
+Sugiro padronizar as respostas de erro, por exemplo:
 
-**Como corrigir:**  
-- Adicione `.env` no seu `.gitignore` para que ele não seja enviado ao GitHub.
-- Se já enviou, remova o arquivo do histórico do Git (você pode pesquisar como fazer isso com `git rm --cached .env`).
-  
-Além disso, garanta que o seu `JWT_SECRET` está definido no `.env` e não no código:
+- Para dados inválidos ou faltantes: `400 Bad Request` com JSON contendo `message` e `errors` (array com detalhes).
+- Para IDs inválidos ou não encontrados: `404 Not Found` com mensagem clara.
+- Para erros de autenticação: `401 Unauthorized` com mensagem.
 
-```env
-JWT_SECRET="seu-segredo-super-seguro"
+Exemplo:
+
+```js
+return res.status(400).json({
+  status: 400,
+  message: 'Parâmetros inválidos',
+  errors: ['Campo X é obrigatório', 'Campo Y deve ser um número']
+});
 ```
 
 ---
 
-### 4. Documentação Incompleta no `INSTRUCTIONS.md`
+### 5. **Documentação incompleta no INSTRUCTIONS.md**
 
-**O que acontece:**  
-Seu arquivo `INSTRUCTIONS.md` não possui as informações sobre autenticação, registro, login, uso do token JWT no header `Authorization`, e fluxo esperado de autenticação.
+Seu arquivo `INSTRUCTIONS.md` ainda está focado na etapa 3, sem incluir as instruções para registro, login, envio do token JWT no header `Authorization` e fluxo de autenticação esperado. Isso é fundamental para quem for usar ou testar sua API.
 
-**Por que isso é importante:**  
-Documentar esses passos é essencial para que outros desenvolvedores (ou você mesmo no futuro) entendam como usar a API corretamente e para garantir que o projeto esteja pronto para produção.
+**Como melhorar:**
 
-**Como corrigir:**  
-Inclua seções como:
+Inclua seções explicando:
 
-```md
-## Autenticação
+- Como registrar um usuário (`POST /auth/register`) com exemplo de payload.
+- Como fazer login (`POST /auth/login`) e receber o token JWT.
+- Como enviar o token no header `Authorization: Bearer <token>` para acessar rotas protegidas.
+- Fluxo esperado de autenticação e autorização.
 
-### Registro de Usuário
-- Endpoint: POST /auth/register
-- Body: { nome, email, senha }
-- Validações: senha com pelo menos 8 caracteres, incluindo letra maiúscula, minúscula, número e caractere especial.
+---
 
-### Login de Usuário
-- Endpoint: POST /auth/login
-- Body: { email, senha }
-- Retorna: { acess_token: "token_jwt" }
+### 6. **Endpoints bônus não implementados**
 
-### Uso do Token JWT
-- Enviar o token no header `Authorization`:
-  Authorization: Bearer <token>
+Você ainda não implementou o endpoint `/usuarios/me` para retornar dados do usuário autenticado, nem a funcionalidade de refresh tokens para renovar sessões. São pontos extras que podem incrementar sua nota e a usabilidade da API.
 
-### Logout
-- Endpoint: POST /auth/logout
-- Finaliza a sessão do usuário.
+---
+
+## Recomendações para estudo 📚
+
+Para te ajudar a aprimorar esses pontos, recomendo fortemente os seguintes conteúdos:
+
+- [Vídeo sobre autenticação JWT, feito pelos meus criadores](https://www.youtube.com/watch?v=keS0JWOypIU) — para entender a geração, validação e uso correto de tokens JWT.
+- [Vídeo sobre autenticação e segurança em Node.js](https://www.youtube.com/watch?v=Q4LQOfYwujk) — para conceitos básicos e fundamentais de segurança.
+- [Documentação e guia do Knex.js sobre migrations e queries](https://www.youtube.com/watch?v=dXWy_aGCW1E) — para entender melhor como manipular o banco e fazer validações antes das queries.
+- [Vídeo sobre boas práticas e arquitetura MVC em Node.js](https://www.youtube.com/watch?v=bGN_xNc4A1k&t=3s) — para organizar melhor as validações e o fluxo dos dados.
+
+---
+
+## Resumo dos principais pontos para focar 🚦
+
+- [ ] Validar IDs recebidos nas rotas para garantir que são números válidos antes de consultar o banco.
+- [ ] Implementar validação rigorosa do corpo das requisições (payload) para PUT e PATCH, garantindo campos obrigatórios e formatos corretos.
+- [ ] Validar a existência do `agente_id` ao criar ou atualizar casos.
+- [ ] Padronizar respostas de erro para facilitar o entendimento e uso da API.
+- [ ] Atualizar o arquivo `INSTRUCTIONS.md` para documentar autenticação, registro, login e uso do token JWT.
+- [ ] Implementar endpoints bônus para `/usuarios/me` e refresh tokens para melhorar a segurança e experiência do usuário.
+
+---
+
+Carol, seu projeto tem uma base muito sólida e você está no caminho certo para construir uma API segura e profissional! 🚀 Com esses ajustes, sua aplicação vai ficar muito mais robusta e confiável. Continue firme, revisando cada detalhe, e não hesite em estudar os recursos que te passei — eles vão te ajudar bastante! 💪
+
+Se precisar de ajuda para implementar alguma dessas melhorias, pode me chamar que eu te guio passo a passo! 😉
+
+Abraços e bons códigos! 👩‍💻👨‍💻
 ```
-
----
-
-### 5. Pequenas Melhorias e Boas Práticas
-
-- **Tratamento de erros mais detalhado:**  
-  Em alguns controllers, você retorna erros genéricos, como `res.status(500).json({ error: error.message })`. Tente capturar erros específicos para dar mensagens mais claras.
-
-- **Consistência no status code de exclusão:**  
-  Para exclusão, você usa `res.status(204).send()`, que é ótimo. Só certifique-se que não envia corpo junto com 204.
-
-- **Middleware de autenticação:**  
-  Está correto, mas cuidado com o split do header `Authorization`. Caso o header não esteja no formato esperado, pode causar erro. Você já trata isso, o que é ótimo.
-
----
-
-## 📚 Recomendações de Estudo para Você
-
-Para ajudar a corrigir os pontos acima e aprofundar seu conhecimento, recomendo muito estes vídeos:
-
-- Sobre **autenticação, hashing e JWT**, este vídeo feito pelos meus criadores é excelente e direto ao ponto:  
-  https://www.youtube.com/watch?v=Q4LQOfYwujk
-
-- Para entender melhor o uso do **JWT na prática** e como proteger rotas:  
-  https://www.youtube.com/watch?v=keS0JWOypIU
-
-- Para dominar o uso de **bcrypt e JWT juntos** e garantir segurança na autenticação:  
-  https://www.youtube.com/watch?v=L04Ln97AwoY
-
-- Sobre **organização do projeto com arquitetura MVC**, para manter seu código limpo e escalável:  
-  https://www.youtube.com/watch?v=bGN_xNc4A1k&t=3s
-
-- Se precisar revisar como configurar o banco PostgreSQL com Docker e Knex:  
-  https://www.youtube.com/watch?v=uEABDBQV-Ek&t=1s
-
----
-
-## 📝 Resumo Rápido dos Pontos para Melhorar
-
-- [ ] Implementar validação completa da senha no registro (mínimo 8 caracteres, letra minúscula, maiúscula, número e caractere especial).
-- [ ] Validar e rejeitar campos extras no payload de registro de usuário.
-- [ ] Remover o arquivo `.env` do repositório e configurar `.gitignore` para ignorá-lo.
-- [ ] Completar a documentação no `INSTRUCTIONS.md` com informações sobre autenticação e uso do token JWT.
-- [ ] Continuar aprimorando tratamento de erros e manter consistência nos status HTTP.
-- [ ] Revisar boas práticas de segurança e arquitetura para manter o projeto profissional.
-
----
-
-Carol, seu projeto já está com uma base muito sólida e funcional! 🔥 Com esses ajustes, sua API vai ficar muito mais segura, confiável e profissional. Continue focada e não desanime com as correções — elas fazem parte do processo de aprendizado e crescimento! 🚀
-
-Se precisar de ajuda para implementar algum ponto, me chama que te ajudo no passo a passo! 😉
-
-Boa codificação! 👩‍💻👨‍💻
-
----
-
-Abraços virtuais,  
-Seu Code Buddy 🤖💙
 
 > Caso queira tirar uma dúvida específica, entre em contato com o Chapter no nosso [discord](https://discord.gg/DryuHVnz).
 
