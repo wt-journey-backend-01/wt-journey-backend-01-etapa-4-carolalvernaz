@@ -1,23 +1,26 @@
-## Atualizar parcialmente (PATCH)
+## Autenticação
 
-### PATCH /agentes/:id
+### Registrar usuário
+POST /auth/register
 Body:
 {
-  "cargo": "Delegado Chefe"
+  "nome": "Carol",
+  "email": "carol@example.com",
+  "senha": "Senha@123"
 }
 
-### PATCH /casos/:id
+### Login
+POST /auth/login
 Body:
 {
-  "status": "solucionado"
+  "email": "carol@example.com",
+  "senha": "Senha@123"
+}
+Resposta:
+{
+  "acess_token": "seu_jwt_token"
 }
 
-## Usuário autenticado
-### GET /auth/me
-Header:
-Authorization: Bearer SEU_TOKEN
-Retorna:
-{
-  "id": 1,
-  "email": "carol@teste.com"
-}
+### Usando o token JWT para acessar rotas protegidas
+Adicionar o header:
+Authorization: Bearer seu_jwt_token
