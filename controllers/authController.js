@@ -1,9 +1,11 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const usuariosRepo = require('../repositories/usuariosRepository');
+const { badRequest, notFound } = require('../utils/errorHandler');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'segredo';
 
+// Registro de usuário
 async function register(req, res) {
   try {
     const { nome, email, senha } = req.body;
@@ -13,30 +15,30 @@ async function register(req, res) {
     const recebidos = Object.keys(req.body);
     const extras = recebidos.filter(c => !camposValidos.includes(c));
     if (extras.length) {
-      return res.status(400).json({
-        error: `Campos inválidos no payload: ${extras.join(', ')}`
-      });
+      return badRequest(res, `Campos inválidos no payload: ${extras.join(', ')}`);
     }
 
-    // Obrigatórios
+    // Campos obrigatórios
     if (!nome || !email || !senha) {
-      return res.status(400).json({ error: 'Campos obrigatórios: nome, email, senha' });
+      return badRequest(res, 'Campos obrigatórios: nome, email, senha');
     }
 
     // Email único
     const existente = await usuariosRepo.findByEmail(email);
     if (existente) {
-      return res.status(400).json({ error: 'Email já em uso' });
+      return badRequest(res, 'Email já em uso');
     }
 
-    // Senha forte (mín 8, maiúscula, minúscula, número e especial)
+    // Senha forte
     const senhaValida = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
     if (!senhaValida.test(senha)) {
-      return res.status(400).json({
-        error: 'Senha deve ter no mínimo 8 caracteres, incluindo uma letra minúscula, uma maiúscula, um número e um caractere especial.'
-      });
+      return badRequest(
+        res,
+        'Senha deve ter no mínimo 8 caracteres, incluindo uma letra minúscula, uma maiúscula, um número e um caractere especial.'
+      );
     }
 
+    // Cria usuário
     const hashed = await bcrypt.hash(senha, 10);
     const novo = await usuariosRepo.create({ nome, email, senha: hashed });
 
@@ -46,6 +48,7 @@ async function register(req, res) {
   }
 }
 
+// Login
 async function login(req, res) {
   try {
     const { email, senha } = req.body;
@@ -57,34 +60,49 @@ async function login(req, res) {
     if (!valido) return res.status(401).json({ error: 'Credenciais inválidas' });
 
     const token = jwt.sign({ id: usuario.id, email: usuario.email }, JWT_SECRET, { expiresIn: '1h' });
+
     res.status(200).json({ acess_token: token });
   } catch (err) {
     res.status(500).json({ error: 'Erro ao fazer login' });
   }
 }
 
+// Logout (apenas informativo)
 async function logout(req, res) {
-  // Com JWT stateless, o "logout" é apenas informativo (ou use blacklist se quiser)
   res.status(200).json({ message: 'Logout realizado com sucesso' });
 }
 
+// Remover usuário
 async function remove(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
-    if (isNaN(id) || id <= 0) return res.status(404).json({ error: 'ID inválido' });
+    if (isNaN(id) || id <= 0) return notFound(res, 'ID inválido');
 
     const deleted = await usuariosRepo.remove(id);
-    if (!deleted) return res.status(404).json({ error: 'Usuário não encontrado' });
+    if (deleted === 0) return notFound(res, 'Usuário não encontrado');
+
     res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: 'Erro ao excluir usuário' });
   }
 }
 
-// BÔNUS: retorna usuário autenticado
+// BÔNUS: retorna usuário autenticado com dados do banco
 async function me(req, res) {
-  if (!req.user) return res.status(401).json({ error: 'Não autenticado' });
-  res.status(200).json({ id: req.user.id, email: req.user.email });
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Não autenticado' });
+
+    const usuario = await usuariosRepo.findById(req.user.id);
+    if (!usuario) return notFound(res, 'Usuário não encontrado');
+
+    res.status(200).json({
+      id: usuario.id,
+      nome: usuario.nome,
+      email: usuario.email
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar usuário autenticado' });
+  }
 }
 
 module.exports = { register, login, logout, remove, me };

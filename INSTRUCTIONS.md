@@ -1,5 +1,23 @@
-# Instruções – Etapa 4 (Autenticação e Segurança)
+## Atualizar parcialmente (PATCH)
 
-## 1) Subir banco com Docker
-```bash
-docker-compose up -d
+### PATCH /agentes/:id
+Body:
+{
+  "cargo": "Delegado Chefe"
+}
+
+### PATCH /casos/:id
+Body:
+{
+  "status": "solucionado"
+}
+
+## Usuário autenticado
+### GET /auth/me
+Header:
+Authorization: Bearer SEU_TOKEN
+Retorna:
+{
+  "id": 1,
+  "email": "carol@teste.com"
+}
