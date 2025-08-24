@@ -1,219 +1,184 @@
 <sup>Esse é um feedback gerado por IA, ele pode conter erros.</sup>
 
-Você tem 6 créditos restantes para usar o sistema de feedback AI.
+Você tem 5 créditos restantes para usar o sistema de feedback AI.
 
 # Feedback para carolalvernaz:
 
 Nota final: **52.0/100**
 
-Olá, carolalvernaz! 👋😊
+Olá, Carol! 👋🚀
 
-Primeiramente, parabéns por todo o esforço e dedicação que você colocou nesse projeto! 🎉 É muito legal ver que você conseguiu implementar a autenticação com JWT, o cadastro, o login e o logout de usuários, além da exclusão de usuários — tudo isso funcionando direitinho! 👏👏 Isso já mostra que você entendeu bem os conceitos de segurança e autenticação, e a estrutura do seu código está bem organizada, seguindo o padrão MVC e separando responsabilidades entre controllers, repositories, rotas e middlewares. Excelente! 🚀
-
----
-
-## Vamos conversar sobre os pontos que precisam de atenção para deixar sua aplicação ainda mais sólida e completa? 🕵️‍♂️🔍
-
-### 1. Estrutura de Diretórios — Está tudo certo! ✅  
-Você seguiu a estrutura pedida, com as pastas `controllers/`, `repositories/`, `routes/`, `middlewares/`, `db/` e `utils/`. Isso é fundamental para manter o código organizado e escalável. Parabéns por isso!
+Antes de tudo, parabéns pelo esforço e dedicação em construir essa API com autenticação, autorização e segurança! Isso não é nada trivial, e você já fez um ótimo trabalho implementando o registro, login, logout e exclusão de usuários, além de proteger as rotas de agentes e casos com JWT. 🎉👏
 
 ---
 
-### 2. **Proteção das rotas de agentes e casos com autenticação JWT**
+## O que você já mandou muito bem! 🌟
 
-Você aplicou o middleware de autenticação (`authMiddleware`) nas rotas de agentes e casos, o que é ótimo:
-
-```js
-// Exemplo do agentesRoutes.js
-const authMiddleware = require('../middlewares/authMiddleware');
-router.use(authMiddleware);
-```
-
-Isso garante que só usuários autenticados possam acessar essas rotas. Porém, percebi que alguns testes de criação, listagem, atualização e exclusão de agentes e casos falharam por causa de problemas relacionados a autenticação e/ou autorização.
-
-**Por que isso pode estar acontecendo?**  
-- O middleware está corretamente aplicado, mas o token JWT pode não estar sendo enviado corretamente nos headers das requisições, ou  
-- O token está expirando rápido demais, ou  
-- Algum problema na forma como o token é validado.
-
-**Dica:** Para garantir que o token seja aceito, o header da requisição deve ser exatamente:
-
-```
-Authorization: Bearer <seu_token_jwt>
-```
-
-Além disso, no seu middleware você faz:
-
-```js
-const [, token] = authHeader.split(' ');
-if (!token) return res.status(401).json({ error: 'Token inválido' });
-```
-
-Se o header estiver mal formatado, o token será `undefined`. Verifique sempre esse ponto nas suas requisições.
+- Implementou a tabela de usuários com migration correta, incluindo os campos obrigatórios e unicidade do email.
+- Criou o registro de usuário com validação de senha forte e hash com bcrypt.
+- Implementou o login com geração de token JWT e tempo de expiração.
+- Middleware de autenticação está lá, validando o token e protegendo as rotas de agentes e casos.
+- Documentação no `INSTRUCTIONS.md` está clara e objetiva para registro, login e uso do token.
+- Os endpoints de usuários (`register`, `login`, `logout`, `remove`) estão funcionando com os status codes corretos.
+- O JWT é assinado com variável de ambiente e não com segredo hardcoded (mesmo que tenha um fallback, o ideal é sempre usar `.env`).
+- O middleware está corretamente aplicado nas rotas de agentes e casos.
+- Você já conseguiu passar os testes básicos e os bônus relacionados a usuários, o que é ótimo!
 
 ---
 
-### 3. **Validação de IDs e tratamento de erros (404 e 400)**
+## Pontos importantes para ajustar e destravar seu projeto 💡
 
-Nos controllers de agentes e casos, você criou a função `parseIdOr404` para validar o ID da rota, o que é ótimo! Isso ajuda a evitar erros ao tentar buscar ou modificar registros com IDs inválidos.
+### 1. **Falha nas operações com agentes e casos (CRUD) — Status codes 200, 201, 204, 400, 404**
 
-Porém, percebi que em algumas rotas o retorno do status 400 ou 404 pode não estar sendo disparado com a mensagem correta, ou que o fluxo de validação pode estar falhando em alguns casos.
+Eu percebi que as rotas de agentes e casos estão protegidas corretamente pelo middleware, e o código dos controllers parece bem estruturado. Porém, os testes indicam que as operações de criação, listagem, busca, atualização e exclusão dos agentes e casos não estão funcionando como esperado — retornando erros ou status incorretos.
 
-Por exemplo, no `agentesController.js`:
+#### Causa raiz provável: **Falta de exportação correta das funções no repositories ou problemas de retorno dos dados**
 
-```js
-function parseIdOr404(req, res) {
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id) || id <= 0) {
-    notFound(res, 'ID inválido');
-    return null;
-  }
-  return id;
-}
-```
-
-Aqui, você chama `notFound` para ID inválido, mas o correto seria um **400 Bad Request** para ID inválido, pois o cliente enviou um parâmetro malformado. O status 404 é mais indicado quando o ID é válido, mas o recurso não foi encontrado.
-
-**Sugestão de ajuste:**
+Vamos analisar o `agentesRepository.js` e `casosRepository.js`:
 
 ```js
-const { badRequest, notFound } = require('../utils/errorHandler');
-
-function parseIdOr400(req, res) {
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id) || id <= 0) {
-    badRequest(res, 'ID inválido');
-    return null;
-  }
-  return id;
-}
-```
-
-E então, quando o recurso não existir, aí sim você usa `notFound`.
-
-Essa pequena mudança ajuda a deixar seu API mais aderente às boas práticas REST e melhora a clareza para quem consome sua API.
-
----
-
-### 4. **Validação de payloads e campos extras**
-
-Você está validando bem os campos recebidos para criação e atualização, rejeitando campos extras ou faltantes. Isso é ótimo!
-
-Porém, percebi que nos controllers de agentes e casos, você tem métodos `update` e `partialUpdate` que, no repositório, chamam a mesma função `update`, porque no repositório não há uma função específica para `partialUpdate`.
-
-No `agentesRepository.js`:
-
-```js
-update: (id, data) => db('agentes').where({ id }).update(data).returning('*'),
-partialUpdate: (id, data) => db('agentes').where({ id }).update(data).returning('*'),
-```
-
-Essa duplicidade pode confundir, e no controller você chama `agentesRepo.update` para ambos os casos (PUT e PATCH), o que está OK, mas a função `partialUpdate` no repositório não está sendo usada.
-
-**Sugestão:** Você pode remover a função `partialUpdate` do repositório para evitar confusão, já que `update` com um objeto parcial já funciona.
-
----
-
-### 5. **Tabela de usuários e migrations**
-
-Sua migration para a tabela `usuarios` está correta e cria os campos necessários:
-
-```js
-exports.up = function (knex) {
-  return knex.schema.createTable('usuarios', (table) => {
-    table.increments('id').primary();
-    table.string('nome').notNullable();
-    table.string('email').notNullable().unique();
-    table.string('senha').notNullable();
-  });
+// agentesRepository.js
+module.exports = {
+  findAll: () => db('agentes').select('*'),
+  findById: (id) => db('agentes').where({ id }).first(),
+  create: (data) => db('agentes').insert(data).returning('*'),
+  update: (id, data) => db('agentes').where({ id }).update(data).returning('*'),
+  partialUpdate: (id, data) => db('agentes').where({ id }).update(data).returning('*'),
+  remove: (id) => db('agentes').where({ id }).del(),
 };
 ```
 
-Porém, verifique se essa migration foi executada corretamente no seu ambiente (rodando `knex migrate:latest`). Caso contrário, as operações de registro e login podem falhar.
-
----
-
-### 6. **Documentação no INSTRUCTIONS.md**
-
-Vi que você adicionou a parte do endpoint `/auth/me` no seu arquivo `INSTRUCTIONS.md`, o que é um bônus muito legal! 👏
-
-Porém, faltam exemplos claros de como registrar e logar usuários, e como enviar o token JWT no header `Authorization`. Isso é importante para quem for usar sua API entender exatamente o fluxo de autenticação.
-
-**Sugestão de exemplo para o INSTRUCTIONS.md:**
-
-```md
-## Autenticação
-
-### Registrar usuário
-POST /auth/register
-Body:
-{
-  "nome": "Carol",
-  "email": "carol@example.com",
-  "senha": "Senha@123"
-}
-
-### Login
-POST /auth/login
-Body:
-{
-  "email": "carol@example.com",
-  "senha": "Senha@123"
-}
-Resposta:
-{
-  "acess_token": "seu_jwt_token"
-}
-
-### Usando o token JWT para acessar rotas protegidas
-Adicionar o header:
-Authorization: Bearer seu_jwt_token
+```js
+// casosRepository.js
+module.exports = {
+  findAll: () => db('casos').select('*'),
+  findById: (id) => db('casos').where({ id }).first(),
+  create: (data) => db('casos').insert(data).returning('*'),
+  update: (id, data) => db('casos').where({ id }).update(data).returning('*'),
+  partialUpdate: (id, data) => db('casos').where({ id }).update(data).returning('*'),
+  remove: (id) => db('casos').where({ id }).del(),
+};
 ```
 
+**Aqui pode estar o problema:**
+
+- O método `.returning('*')` no PostgreSQL retorna um array de registros inseridos ou atualizados. No seu controller, você está usando desestruturação para pegar o primeiro item:
+
+```js
+const [novo] = await agentesRepo.create({ nome, dataDeIncorporacao, cargo });
+```
+
+- Porém, o Knex em algumas versões pode retornar um array vazio ou undefined se o banco não estiver configurado para retornar os dados após insert/update. Isso pode fazer com que `novo` seja `undefined`, causando erros ou retornos inesperados.
+
+- Além disso, percebi que no seu código você chama `.update()` para o método `partialUpdate`, mas no controller você chama `update` para fazer o patch. Isso pode ser confuso e gerar problemas.
+
+**Sugestão:**
+
+- Teste se o array retornado pelo `.insert()` e `.update()` realmente contém os dados esperados.
+- Para garantir, você pode fazer o seguinte no repository:
+
+```js
+async function create(data) {
+  const [created] = await db('agentes').insert(data).returning('*');
+  return created;
+}
+
+async function update(id, data) {
+  const [updated] = await db('agentes').where({ id }).update(data).returning('*');
+  return updated;
+}
+
+async function remove(id) {
+  const deleted = await db('agentes').where({ id }).del();
+  return deleted;
+}
+
+module.exports = { create, update, remove, /* ... */ };
+```
+
+E no controller, ajuste para receber o objeto diretamente, sem desestruturação:
+
+```js
+const novo = await agentesRepo.create({ nome, dataDeIncorporacao, cargo });
+res.status(201).json(novo);
+```
+
+- Faça o mesmo para os casos.
+
+### 2. **Validação de IDs e tratamento de erros**
+
+Você fez um ótimo trabalho validando os IDs em `parseIdOr404`. Porém, percebi que em alguns controllers, quando o ID é inválido, você retorna `null` e não interrompe a execução, o que pode causar erros.
+
+Exemplo:
+
+```js
+const id = parseIdOr404(req, res);
+if (!id) return;
+```
+
+O problema é que se `id` for 0, `!id` será true, mas 0 é inválido mesmo, então ok. Só tome cuidado com falsy values.
+
+### 3. **Middleware de autenticação**
+
+Seu middleware está correto, mas atenção na extração do token:
+
+```js
+const [, token] = authHeader.split(' ');
+```
+
+Se o header não estiver no formato esperado (`Bearer token`), `token` pode ser `undefined`. Você já trata isso, então está ótimo!
+
+### 4. **Estrutura de Diretórios**
+
+Sua estrutura está muito próxima do esperado, só notei que seu arquivo de migration para agentes e casos tem nome estranho:
+
+```
+db/migrations/20250811011700_solution_migrations.js.js
+```
+
+O `.js.js` no final é um erro de digitação e pode causar problemas ao rodar as migrations. Recomendo renomear para:
+
+```
+20250811011700_solution_migrations.js
+```
+
+Além disso, o arquivo `usuarios.js` em seeds não foi mostrado, mas certifique-se de que ele está populando corretamente a tabela `usuarios` se for necessário.
+
 ---
 
-### 7. **Bônus: Refresh Token e Endpoint /usuarios/me**
+## Recomendações de aprendizado 📚
 
-Você implementou o endpoint `/auth/me` para retornar dados do usuário autenticado, isso é ótimo! 🎉
+- Para entender melhor como trabalhar com migrations e seeds no Knex, recomendo muito este vídeo:  
+  https://www.youtube.com/watch?v=dXWy_aGCW1E  
+  Ele explica detalhadamente como criar e executar migrations, e isso vai ajudar a evitar erros como o do nome do arquivo.
 
-Porém, não vi implementação de refresh token, que é um bônus opcional para prolongar sessões. Se quiser explorar isso depois, pode ser um aprendizado valioso!
+- Para manipulação correta das queries com Knex e retorno dos dados, veja:  
+  https://www.youtube.com/watch?v=GLwHSs7t3Ns&t=4s
 
----
-
-## Recursos para você aprimorar ainda mais:
-
-- Para entender melhor a autenticação JWT e bcrypt, recomendo muito este vídeo, feito pelos meus criadores, que explica tudo de forma clara e prática:  
+- Sobre autenticação com JWT e bcrypt, este vídeo, feito pelos meus criadores, é excelente para consolidar os conceitos:  
   https://www.youtube.com/watch?v=L04Ln97AwoY
 
-- Para aprofundar no uso do JWT especificamente, veja este vídeo que ensina a gerar e validar tokens:  
-  https://www.youtube.com/watch?v=keS0JWOypIU
-
-- Se quiser reforçar as boas práticas de organização do projeto e arquitetura MVC, este vídeo é excelente:  
+- Para estruturar seu projeto seguindo o padrão MVC (Model-View-Controller), que você já está quase lá, recomendo:  
   https://www.youtube.com/watch?v=bGN_xNc4A1k&t=3s
-
-- Caso esteja com dúvidas sobre migrations, seeds e configuração do banco PostgreSQL com Docker e Knex, estes vídeos serão super úteis:  
-  https://www.youtube.com/watch?v=uEABDBQV-Ek&t=1s  
-  https://www.youtube.com/watch?v=dXWy_aGCW1E  
-  https://www.youtube.com/watch?v=AJrK90D5el0&t=9s
 
 ---
 
 ## Resumo rápido para você focar:
 
-- 🚦 Ajustar o status HTTP para **400 Bad Request** em IDs inválidos, usando `badRequest` em vez de `notFound` para IDs malformados.  
-- 🔐 Garantir que o token JWT está sendo enviado corretamente no header `Authorization` nas requisições para rotas protegidas.  
-- 🛠️ Remover funções duplicadas no repositório (`partialUpdate` que não é usada).  
-- 📄 Completar a documentação no INSTRUCTIONS.md com exemplos claros de registro, login e uso do token JWT.  
-- ✅ Verificar se a migration da tabela `usuarios` foi aplicada corretamente no banco.  
-- 🌟 Continuar explorando o bônus do refresh token quando se sentir confortável.
+- ⚠️ Corrija o nome da migration com `.js.js` para `.js` para garantir que o banco esteja atualizado corretamente.
+- ⚠️ Ajuste os métodos `create` e `update` nos repositories para retornar um objeto direto, não um array, e ajuste os controllers para lidar com isso.
+- ⚠️ Verifique se a seed dos usuários está populando corretamente a tabela `usuarios`.
+- ⚠️ Continue validando IDs e campos obrigatórios nos controllers para evitar erros inesperados.
+- ✅ Mantenha seu middleware de autenticação e rotas protegidas como estão, pois estão corretos.
+- 📚 Assista aos vídeos recomendados para consolidar seu conhecimento em migrations, Knex e autenticação.
 
 ---
 
-Carol, seu projeto está com uma base muito boa e você já domina os conceitos essenciais de autenticação e organização de código! 🚀 Com esses ajustes, sua API vai ficar ainda mais robusta e profissional. Continue nessa jornada com essa garra! 💪💙
+Carol, você já tem uma base muito sólida e está no caminho certo! Com esses ajustes finos, sua API vai funcionar perfeitamente, e você terá um projeto robusto e seguro para o Departamento de Polícia. Continue firme, pois você está fazendo um trabalho incrível! 💪🔥
 
-Se precisar de ajuda para entender qualquer ponto, só chamar! Estou aqui para te ajudar a destravar cada detalhe. 😉
+Se precisar de mais ajuda, estou aqui para te apoiar! 😉
 
-Abraços e sucesso! 👮‍♀️✨
+Um abraço e boa codificação! 👩‍💻✨
 
 > Caso queira tirar uma dúvida específica, entre em contato com o Chapter no nosso [discord](https://discord.gg/DryuHVnz).
 
