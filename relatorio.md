@@ -1,202 +1,191 @@
 <sup>Esse é um feedback gerado por IA, ele pode conter erros.</sup>
 
-Você tem 8 créditos restantes para usar o sistema de feedback AI.
+Você tem 7 créditos restantes para usar o sistema de feedback AI.
 
 # Feedback para carolalvernaz:
 
 Nota final: **52.0/100**
 
 ```markdown
-# Feedback para Carolalvernaz 🚓✨
+# Olá, carolalvernaz! 🚀
 
-Olá, Carol! Primeiro, quero parabenizar você pelo esforço e dedicação nessa etapa tão importante do seu projeto! 🎉 Você conseguiu implementar a autenticação com JWT, o hash das senhas com bcrypt, e proteger as rotas com middleware, o que já é um grande avanço rumo a uma API segura e profissional. Além disso, suas rotas e controllers estão bem organizados, e o cadastro/login/logout de usuários estão funcionando com boas validações — isso é incrível! 👏
-
----
-
-## O que está muito bom 👍
-
-- **Autenticação e segurança:** Seu `authController.js` está com uma lógica clara para registro e login, com validação de senha usando regex, hash com bcrypt, e geração de JWT com expiração.  
-- **Middleware de autenticação:** Seu `authMiddleware.js` está corretamente validando o token JWT e protegendo as rotas de agentes e casos.  
-- **Organização do código:** Você seguiu bem a arquitetura MVC, separando controllers, repositories, middlewares e rotas conforme esperado.  
-- **Validações:** Você fez validações robustas no registro (campos obrigatórios, campos extras, senha forte), o que é ótimo para a segurança e qualidade do sistema.  
-- **Boas práticas:** Uso do `.env` para o segredo JWT e configuração do Knex com migrations e seeds estão corretos.  
+Primeiramente, parabéns pelo esforço e pela entrega até aqui! 👏 Você já implementou a base da autenticação com JWT, hashing de senhas com bcrypt e a proteção das rotas com middleware, o que é um baita avanço para a segurança da sua API. Além disso, vi que você conseguiu fazer o registro, login, logout e exclusão de usuários funcionando direitinho! 🎉 Isso mostra que você compreendeu bem os conceitos fundamentais de autenticação e autorização. Muito bom!
 
 ---
 
-## Pontos importantes para melhorar e que impactam o funcionamento do projeto 🔎
+## O que está funcionando bem ✅
 
-### 1. **Validação e tratamento de IDs inválidos nas rotas de agentes e casos**
+- **Autenticação com JWT:** Seu `authController.js` está gerando tokens JWT com expiração, e seu middleware `authMiddleware.js` está validando esses tokens corretamente.
+- **Hash de senha:** Você aplicou bcrypt para armazenar as senhas de forma segura.
+- **Proteção das rotas:** As rotas de agentes e casos estão protegidas pelo middleware, garantindo que só usuários autenticados possam acessá-las.
+- **Validações:** O tratamento de erros e validações para criação e atualização de usuários está bem feito, cobrindo campos obrigatórios, formato da senha e campos extras.
+- **Estrutura de pastas:** A estrutura do seu projeto está alinhada com o esperado, incluindo os novos arquivos para autenticação (`authController.js`, `authRoutes.js`, `usuariosRepository.js`, `authMiddleware.js`).
 
-Eu notei que nos controllers de agentes e casos, você não fez validações para garantir que o ID passado na URL seja um número válido. Isso pode causar erros ou falhas silenciosas, e também pode estar causando respostas incorretas ao buscar, atualizar ou deletar registros com IDs inválidos.
+---
 
-Por exemplo, no seu `agentesController.js`:
+## Pontos que precisam de atenção para destravar a API e alcançar a nota máxima 🚧
+
+### 1. Retorno dos dados após criação e atualização de agentes e casos
+
+Ao analisar seus controllers de agentes (`agentesController.js`) e casos (`casosController.js`), percebi que você está usando métodos do Knex que retornam arrays com os dados atualizados/criados, mas está retornando esses arrays diretamente na resposta. Por exemplo:
 
 ```js
-async function getById(req, res) {
+const novo = await agentesRepo.create({ nome, dataDeIncorporacao, cargo });
+res.status(201).json(novo);
+```
+
+E no seu `agentesRepository.js`:
+
+```js
+create: (data) => db('agentes').insert(data).returning('*'),
+```
+
+O `returning('*')` do Knex retorna um array com os registros inseridos/atualizados, não um objeto único. Isso pode causar um problema porque a API espera um objeto JSON com o agente criado, não um array.
+
+**Como corrigir?** Retorne o primeiro elemento do array para enviar o objeto correto:
+
+```js
+const [novo] = await agentesRepo.create({ nome, dataDeIncorporacao, cargo });
+res.status(201).json(novo);
+```
+
+Faça o mesmo para os métodos de atualização (`update` e `partialUpdate`) tanto em agentes quanto em casos.
+
+---
+
+### 2. Métodos `remove` no repositório retornam número de linhas afetadas, mas no controller não está sendo tratado corretamente
+
+Nos seus repositórios, o método `remove` retorna a quantidade de linhas deletadas:
+
+```js
+remove: (id) => db('agentes').where({ id }).del(),
+```
+
+No controller, você faz:
+
+```js
+const removido = await agentesRepo.remove(id);
+if (!removido) return notFound(res, 'Agente não encontrado');
+res.status(204).send();
+```
+
+Isso está correto, porém, em alguns lugares talvez não esteja tratando direito o retorno para casos de ID inválido ou inexistente. Certifique-se de que sempre verifica se `removido` é maior que 0 antes de responder sucesso.
+
+---
+
+### 3. Validação de ID nas rotas de agentes e casos
+
+Você tem uma função `parseIdOr404` que retorna `null` e responde com 404 caso o ID seja inválido. Isso é ótimo! Porém, em alguns pontos do código, por exemplo no controller de casos, você responde direto com `res.status(404).json` em vez de usar o utilitário `notFound` do seu `errorHandler.js`. Essa inconsistência não é um problema grave, mas para manter o padrão e facilitar manutenção, recomendo usar sempre os helpers de erro centralizados.
+
+---
+
+### 4. Validação da senha no registro de usuário
+
+Sua regex para validar a senha está correta e cobre os requisitos mínimos:
+
+```js
+const senhaValida = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+```
+
+Isso é ótimo! Só fique atento para sempre retornar mensagens claras para o usuário final, como você já faz.
+
+---
+
+### 5. Documentação incompleta no arquivo `INSTRUCTIONS.md`
+
+Vi que seu `INSTRUCTIONS.md` está praticamente vazio, com apenas o comando para subir o banco:
+
+```md
+# Instruções – Etapa 4 (Autenticação e Segurança)
+
+## 1) Subir banco com Docker
+```bash
+docker-compose up -d
+```
+```
+
+É fundamental que você documente como registrar usuários, fazer login, enviar o token JWT no header `Authorization` e o fluxo geral de autenticação esperado. Isso ajuda muito quem for usar ou avaliar sua API.
+
+---
+
+### 6. Bônus não implementado (endpoint `/usuarios/me`)
+
+Você já deixou o endpoint `/auth/me` implementado no `authRoutes.js` e `authController.js`, mas ele não está funcionando corretamente porque o middleware `authMiddleware` não está populando o `req.user` com os dados completos do usuário (apenas o payload do token). Para melhorar, você pode buscar o usuário no banco pelo `id` do token e retornar os dados completos.
+
+---
+
+## Sugestões de melhoria no código para destravar os principais erros
+
+Vou mostrar como ajustar o retorno do método `create` e `update` para agentes, você pode aplicar o mesmo para os casos:
+
+```js
+// agentesController.js - create
+async function create(req, res) {
   try {
-    const agente = await agentesRepo.findById(req.params.id);
-    if (!agente) {
-      return res.status(404).json({ error: 'Agente não encontrado' });
-    }
-    res.status(200).json(agente);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    // validações...
+
+    const { nome, dataDeIncorporacao, cargo } = req.body;
+
+    const [novo] = await agentesRepo.create({ nome, dataDeIncorporacao, cargo }); // desestrutura o array
+    res.status(201).json(novo);
+  } catch (e) {
+    res.status(500).json({ error: 'Erro ao criar agente' });
   }
 }
 ```
 
-Aqui, `req.params.id` pode ser uma string que não representa um número válido. O ideal é validar isso antes de consultar o banco, para evitar consultas inválidas ou erros inesperados.
-
-**Como melhorar:**
-
-Adicione uma validação simples para verificar se o ID é um número inteiro positivo:
-
-```js
-const id = parseInt(req.params.id, 10);
-if (isNaN(id) || id <= 0) {
-  return res.status(404).json({ error: 'ID inválido' });
-}
-```
-
-Faça isso em todos os métodos que recebem ID (`getById`, `update`, `partialUpdate`, `remove`) tanto em agentes quanto em casos.
-
----
-
-### 2. **Validação do payload (body) nas rotas PUT e PATCH**
-
-Atualmente, seus métodos `update` e `partialUpdate` nos controllers de agentes e casos aceitam qualquer objeto no corpo da requisição e repassam direto para o repositório. Isso pode fazer com que dados inválidos ou incompletos sejam aceitos, quebrando a integridade dos dados.
-
-Por exemplo, no `agentesController.js`:
+E para update:
 
 ```js
 async function update(req, res) {
+  const id = parseIdOr404(req, res);
+  if (!id) return;
   try {
-    const [atualizado] = await agentesRepo.update(req.params.id, req.body);
-    if (!atualizado) {
-      return res.status(404).json({ error: 'Agente não encontrado' });
-    }
+    // validações...
+
+    const [atualizado] = await agentesRepo.update(id, { nome, dataDeIncorporacao, cargo });
+    if (!atualizado) return notFound(res, 'Agente não encontrado');
     res.status(200).json(atualizado);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (e) {
+    res.status(500).json({ error: 'Erro ao atualizar agente' });
   }
 }
 ```
 
-Não há validação do formato ou campos obrigatórios no `req.body`. Isso pode permitir a atualização com dados errados ou vazios.
+---
 
-**Como melhorar:**
+## Recursos para você estudar e melhorar ainda mais
 
-- Para `PUT` (atualização completa), valide se todos os campos obrigatórios estão presentes e corretos.
-- Para `PATCH` (atualização parcial), valide se pelo menos um campo válido está presente e se os valores são aceitáveis.
+- Para entender melhor o retorno do Knex e como manipular arrays retornados por `insert` e `update`, recomendo este vídeo:  
+  https://www.youtube.com/watch?v=GLwHSs7t3Ns&t=4s  
+  (Guia detalhado do Knex Query Builder)
 
-Exemplo de validação simples para `update`:
+- Para aprimorar a autenticação JWT e bcrypt, este vídeo, feito pelos meus criadores, fala muito bem sobre os conceitos básicos e a prática:  
+  https://www.youtube.com/watch?v=L04Ln97AwoY
 
-```js
-const { nome, dataDeIncorporacao, cargo } = req.body;
-if (!nome || !dataDeIncorporacao || !cargo) {
-  return res.status(400).json({
-    status: 400,
-    message: 'Parâmetros inválidos',
-    errors: ['Campos obrigatórios: nome, dataDeIncorporacao, cargo']
-  });
-}
-```
+- Para organizar seu projeto e entender a arquitetura MVC, veja este vídeo que ajuda a estruturar controllers, repositories e rotas:  
+  https://www.youtube.com/watch?v=bGN_xNc4A1k&t=3s
 
-Para o `partialUpdate`, valide que pelo menos algum dos campos está no corpo e que os valores são válidos.
+- E claro, para a configuração do banco com Docker e Knex, caso precise revisar:  
+  https://www.youtube.com/watch?v=uEABDBQV-Ek&t=1s
 
 ---
 
-### 3. **Validação da existência do agente_id ao criar ou atualizar casos**
+## Resumo rápido dos principais pontos para focar:
 
-No `casosController.js`, quando você cria ou atualiza um caso, você recebe um `agente_id` que deve existir na tabela `agentes`. Porém, não há uma validação para garantir que esse `agente_id` realmente existe no banco antes de criar ou atualizar o caso.
-
-Isso pode causar erros de integridade referencial ou falhas nas queries.
-
-**Como melhorar:**
-
-Antes de criar ou atualizar um caso, faça uma consulta para verificar se o agente existe, por exemplo:
-
-```js
-const agente = await agentesRepo.findById(agente_id);
-if (!agente) {
-  return res.status(404).json({ error: 'Agente não encontrado' });
-}
-```
-
-Assim, você garante que o `agente_id` é válido e evita erros no banco.
+- 🔑 **Ajustar retorno dos métodos `create` e `update` para retornar objetos, não arrays** (usar desestruturação `[objeto] = await ...`).
+- 🛠️ **Verificar tratamento correto do retorno dos métodos `remove` para confirmar exclusão.**
+- 📚 **Completar a documentação no `INSTRUCTIONS.md` explicando registro, login, uso do token JWT no header e fluxo da autenticação.**
+- 🔍 **Padronizar o uso dos helpers de erro para manter consistência nas respostas.**
+- 🌟 **Aprimorar o endpoint `/usuarios/me` para retornar dados completos do usuário autenticado.**
 
 ---
 
-### 4. **Resposta consistente para erros de validação e formatos incorretos**
+Carol, você está no caminho certo! 🚀 Com esses ajustes, sua API vai ficar muito mais robusta e alinhada com os requisitos. Continue firme, revisando cuidadosamente o que cada função retorna e garantindo que suas respostas estejam no formato esperado. Isso é essencial para que o frontend ou qualquer cliente da API consiga consumir seus dados corretamente.
 
-Percebi que nem sempre as respostas para erros de payload ou IDs inválidos seguem um padrão consistente de status e mensagem. Isso pode confundir quem consome sua API.
+Se precisar, volte aos vídeos recomendados para reforçar os conceitos. Estou aqui torcendo pelo seu sucesso! 💪✨
 
-Sugiro padronizar as respostas de erro, por exemplo:
-
-- Para dados inválidos ou faltantes: `400 Bad Request` com JSON contendo `message` e `errors` (array com detalhes).
-- Para IDs inválidos ou não encontrados: `404 Not Found` com mensagem clara.
-- Para erros de autenticação: `401 Unauthorized` com mensagem.
-
-Exemplo:
-
-```js
-return res.status(400).json({
-  status: 400,
-  message: 'Parâmetros inválidos',
-  errors: ['Campo X é obrigatório', 'Campo Y deve ser um número']
-});
-```
-
----
-
-### 5. **Documentação incompleta no INSTRUCTIONS.md**
-
-Seu arquivo `INSTRUCTIONS.md` ainda está focado na etapa 3, sem incluir as instruções para registro, login, envio do token JWT no header `Authorization` e fluxo de autenticação esperado. Isso é fundamental para quem for usar ou testar sua API.
-
-**Como melhorar:**
-
-Inclua seções explicando:
-
-- Como registrar um usuário (`POST /auth/register`) com exemplo de payload.
-- Como fazer login (`POST /auth/login`) e receber o token JWT.
-- Como enviar o token no header `Authorization: Bearer <token>` para acessar rotas protegidas.
-- Fluxo esperado de autenticação e autorização.
-
----
-
-### 6. **Endpoints bônus não implementados**
-
-Você ainda não implementou o endpoint `/usuarios/me` para retornar dados do usuário autenticado, nem a funcionalidade de refresh tokens para renovar sessões. São pontos extras que podem incrementar sua nota e a usabilidade da API.
-
----
-
-## Recomendações para estudo 📚
-
-Para te ajudar a aprimorar esses pontos, recomendo fortemente os seguintes conteúdos:
-
-- [Vídeo sobre autenticação JWT, feito pelos meus criadores](https://www.youtube.com/watch?v=keS0JWOypIU) — para entender a geração, validação e uso correto de tokens JWT.
-- [Vídeo sobre autenticação e segurança em Node.js](https://www.youtube.com/watch?v=Q4LQOfYwujk) — para conceitos básicos e fundamentais de segurança.
-- [Documentação e guia do Knex.js sobre migrations e queries](https://www.youtube.com/watch?v=dXWy_aGCW1E) — para entender melhor como manipular o banco e fazer validações antes das queries.
-- [Vídeo sobre boas práticas e arquitetura MVC em Node.js](https://www.youtube.com/watch?v=bGN_xNc4A1k&t=3s) — para organizar melhor as validações e o fluxo dos dados.
-
----
-
-## Resumo dos principais pontos para focar 🚦
-
-- [ ] Validar IDs recebidos nas rotas para garantir que são números válidos antes de consultar o banco.
-- [ ] Implementar validação rigorosa do corpo das requisições (payload) para PUT e PATCH, garantindo campos obrigatórios e formatos corretos.
-- [ ] Validar a existência do `agente_id` ao criar ou atualizar casos.
-- [ ] Padronizar respostas de erro para facilitar o entendimento e uso da API.
-- [ ] Atualizar o arquivo `INSTRUCTIONS.md` para documentar autenticação, registro, login e uso do token JWT.
-- [ ] Implementar endpoints bônus para `/usuarios/me` e refresh tokens para melhorar a segurança e experiência do usuário.
-
----
-
-Carol, seu projeto tem uma base muito sólida e você está no caminho certo para construir uma API segura e profissional! 🚀 Com esses ajustes, sua aplicação vai ficar muito mais robusta e confiável. Continue firme, revisando cada detalhe, e não hesite em estudar os recursos que te passei — eles vão te ajudar bastante! 💪
-
-Se precisar de ajuda para implementar alguma dessas melhorias, pode me chamar que eu te guio passo a passo! 😉
-
-Abraços e bons códigos! 👩‍💻👨‍💻
+Abraços e até a próxima revisão! 👩‍💻👨‍💻
 ```
 
 > Caso queira tirar uma dúvida específica, entre em contato com o Chapter no nosso [discord](https://discord.gg/DryuHVnz).
