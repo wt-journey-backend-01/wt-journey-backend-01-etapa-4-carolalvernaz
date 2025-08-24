@@ -8,7 +8,7 @@ router.post('/login', authController.login);
 
 // protegidas
 router.post('/logout', authMiddleware, authController.logout);
-router.delete('/users/:id', authMiddleware, authController.remove);
+router.delete('/usuarios/:id', authMiddleware, authController.remove);
 
 // BÔNUS
 router.get('/me', authMiddleware, authController.me);
