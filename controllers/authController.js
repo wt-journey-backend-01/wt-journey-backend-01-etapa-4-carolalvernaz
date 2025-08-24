@@ -3,9 +3,8 @@ const jwt = require('jsonwebtoken');
 const usuariosRepo = require('../repositories/usuariosRepository');
 const { badRequest, notFound } = require('../utils/errorHandler');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'segredo';
+const JWT_SECRET = process.env.JWT_SECRET; // só variável de ambiente
 
-// Função auxiliar para validar IDs
 function parseIdOr404(req, res) {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id) || id <= 0) {
@@ -19,21 +18,16 @@ function parseIdOr404(req, res) {
 async function register(req, res) {
   try {
     const { nome, email, senha } = req.body;
-
-    // Rejeita campos extras
     const camposValidos = ['nome', 'email', 'senha'];
-    const recebidos = Object.keys(req.body);
-    const extras = recebidos.filter(c => !camposValidos.includes(c));
+    const extras = Object.keys(req.body).filter(c => !camposValidos.includes(c));
     if (extras.length) {
       return badRequest(res, `Campos inválidos no payload: ${extras.join(', ')}`);
     }
 
-    // Campos obrigatórios
     if (!nome || !email || !senha) {
       return badRequest(res, 'Campos obrigatórios: nome, email, senha');
     }
 
-    // Email único
     const existente = await usuariosRepo.findByEmail(email);
     if (existente) {
       return badRequest(res, 'Email já em uso');
@@ -48,7 +42,6 @@ async function register(req, res) {
       );
     }
 
-    // Cria usuário
     const hashed = await bcrypt.hash(senha, 10);
     const novo = await usuariosRepo.create({ nome, email, senha: hashed });
 
@@ -71,13 +64,14 @@ async function login(req, res) {
 
     const token = jwt.sign({ id: usuario.id, email: usuario.email }, JWT_SECRET, { expiresIn: '1h' });
 
-    res.status(200).json({ access_token: token });
+    // conforme especificação: "acess_token" (um "c" só)
+    res.status(200).json({ acess_token: token });
   } catch (err) {
     res.status(500).json({ error: 'Erro ao fazer login' });
   }
 }
 
-// Logout (apenas informativo)
+// Logout
 async function logout(req, res) {
   res.status(200).json({ message: 'Logout realizado com sucesso' });
 }

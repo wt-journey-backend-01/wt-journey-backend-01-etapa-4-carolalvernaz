@@ -33,15 +33,10 @@ async function getById(req, res) {
 
 async function create(req, res) {
   try {
-    const camposValidos = ['nome', 'dataDeIncorporacao', 'cargo'];
-    const recebidos = Object.keys(req.body);
-    const extras = recebidos.filter(c => !camposValidos.includes(c));
-    if (extras.length) return badRequest(res, `Campos inválidos: ${extras.join(', ')}`);
-
     const { nome, dataDeIncorporacao, cargo } = req.body;
-    if (!nome || !dataDeIncorporacao || !cargo) {
-      return badRequest(res, 'Campos obrigatórios: nome, dataDeIncorporacao, cargo');
-    }
+    if (!nome) return badRequest(res, 'Campo obrigatório: nome');
+    if (!dataDeIncorporacao) return badRequest(res, 'Campo obrigatório: dataDeIncorporacao');
+    if (!cargo) return badRequest(res, 'Campo obrigatório: cargo');
 
     const novo = await agentesRepo.create({ nome, dataDeIncorporacao, cargo });
     res.status(201).json(novo);
@@ -71,12 +66,9 @@ async function partialUpdate(req, res) {
   const id = parseIdOr404(req, res);
   if (id === null) return;
   try {
-    const camposValidos = ['nome', 'dataDeIncorporacao', 'cargo'];
-    const recebidos = Object.keys(req.body);
-    if (recebidos.length === 0) return badRequest(res, 'Envie ao menos um campo para atualizar');
-
-    const extras = recebidos.filter(c => !camposValidos.includes(c));
-    if (extras.length) return badRequest(res, `Campos inválidos: ${extras.join(', ')}`);
+    if (Object.keys(req.body).length === 0) {
+      return badRequest(res, 'Envie ao menos um campo para atualizar');
+    }
 
     const atualizado = await agentesRepo.partialUpdate(id, req.body);
     if (!atualizado) return notFound(res, 'Agente não encontrado');

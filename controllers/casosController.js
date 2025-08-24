@@ -52,9 +52,10 @@ async function create(req, res) {
     const { titulo, descricao, status, agente_id } = req.body;
     const statusOk = ['aberto', 'solucionado'];
 
-    if (!titulo || !descricao || !statusOk.includes(status) || agente_id == null) {
-      return badRequest(res, 'Campos obrigatórios inválidos');
-    }
+    if (!titulo) return badRequest(res, 'Campo obrigatório: titulo');
+    if (!descricao) return badRequest(res, 'Campo obrigatório: descricao');
+    if (!statusOk.includes(status)) return badRequest(res, "status deve ser 'aberto' ou 'solucionado'");
+    if (agente_id == null) return badRequest(res, 'Campo obrigatório: agente_id');
 
     const fkOk = await validarAgenteExistente(agente_id, res);
     if (!fkOk) return;
