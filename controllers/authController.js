@@ -5,6 +5,16 @@ const { badRequest, notFound } = require('../utils/errorHandler');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'segredo';
 
+// Função auxiliar para validar IDs
+function parseIdOr404(req, res) {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id) || id <= 0) {
+    notFound(res, 'ID inválido');
+    return null;
+  }
+  return id;
+}
+
 // Registro de usuário
 async function register(req, res) {
   try {
@@ -61,7 +71,7 @@ async function login(req, res) {
 
     const token = jwt.sign({ id: usuario.id, email: usuario.email }, JWT_SECRET, { expiresIn: '1h' });
 
-    res.status(200).json({ acess_token: token });
+    res.status(200).json({ access_token: token });
   } catch (err) {
     res.status(500).json({ error: 'Erro ao fazer login' });
   }
@@ -75,8 +85,8 @@ async function logout(req, res) {
 // Remover usuário
 async function remove(req, res) {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id) || id <= 0) return notFound(res, 'ID inválido');
+    const id = parseIdOr404(req, res);
+    if (id === null) return;
 
     const deleted = await usuariosRepo.remove(id);
     if (deleted === 0) return notFound(res, 'Usuário não encontrado');
@@ -87,7 +97,7 @@ async function remove(req, res) {
   }
 }
 
-// BÔNUS: retorna usuário autenticado com dados do banco
+// Retorna usuário autenticado
 async function me(req, res) {
   try {
     if (!req.user) return res.status(401).json({ error: 'Não autenticado' });

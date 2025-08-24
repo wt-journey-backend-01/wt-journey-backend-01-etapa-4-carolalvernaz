@@ -37,7 +37,7 @@ async function getAll(req, res) {
 
 async function getById(req, res) {
   const id = parseIdOr404(req, res);
-  if (!id) return;
+  if (id === null) return;
   try {
     const caso = await casosRepo.findById(id);
     if (!caso) return notFound(res, 'Caso não encontrado');
@@ -59,7 +59,7 @@ async function create(req, res) {
     const fkOk = await validarAgenteExistente(agente_id, res);
     if (!fkOk) return;
 
-    const [novo] = await casosRepo.create({ titulo, descricao, status, agente_id });
+    const novo = await casosRepo.create({ titulo, descricao, status, agente_id });
     res.status(201).json(novo);
   } catch (e) {
     res.status(500).json({ error: 'Erro ao criar caso' });
@@ -68,7 +68,7 @@ async function create(req, res) {
 
 async function update(req, res) {
   const id = parseIdOr404(req, res);
-  if (!id) return;
+  if (id === null) return;
   try {
     const { titulo, descricao, status, agente_id } = req.body;
     const statusOk = ['aberto', 'solucionado'];
@@ -80,7 +80,7 @@ async function update(req, res) {
     const fkOk = await validarAgenteExistente(agente_id, res);
     if (!fkOk) return;
 
-    const [atualizado] = await casosRepo.update(id, { titulo, descricao, status, agente_id });
+    const atualizado = await casosRepo.update(id, { titulo, descricao, status, agente_id });
     if (!atualizado) return notFound(res, 'Caso não encontrado');
     res.status(200).json(atualizado);
   } catch (e) {
@@ -90,7 +90,7 @@ async function update(req, res) {
 
 async function partialUpdate(req, res) {
   const id = parseIdOr404(req, res);
-  if (!id) return;
+  if (id === null) return;
   try {
     if (req.body.status && !['aberto', 'solucionado'].includes(req.body.status)) {
       return badRequest(res, "status deve ser 'aberto' ou 'solucionado'");
@@ -101,7 +101,7 @@ async function partialUpdate(req, res) {
       if (!fkOk) return;
     }
 
-    const [atualizado] = await casosRepo.update(id, req.body); // usa update para partial tbm
+    const atualizado = await casosRepo.partialUpdate(id, req.body);
     if (!atualizado) return notFound(res, 'Caso não encontrado');
     res.status(200).json(atualizado);
   } catch (e) {
@@ -111,7 +111,7 @@ async function partialUpdate(req, res) {
 
 async function remove(req, res) {
   const id = parseIdOr404(req, res);
-  if (!id) return;
+  if (id === null) return;
   try {
     const removido = await casosRepo.remove(id);
     if (removido === 0) return notFound(res, 'Caso não encontrado');

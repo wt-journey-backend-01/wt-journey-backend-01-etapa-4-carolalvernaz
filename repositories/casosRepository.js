@@ -1,10 +1,37 @@
 const db = require('../db/db');
 
+async function findAll() {
+  return db('casos').select('*');
+}
+
+async function findById(id) {
+  return db('casos').where({ id }).first();
+}
+
+async function create(data) {
+  const [created] = await db('casos').insert(data).returning('*');
+  return created;
+}
+
+async function update(id, data) {
+  const [updated] = await db('casos').where({ id }).update(data).returning('*');
+  return updated;
+}
+
+async function partialUpdate(id, data) {
+  const [updated] = await db('casos').where({ id }).update(data).returning('*');
+  return updated;
+}
+
+async function remove(id) {
+  return db('casos').where({ id }).del();
+}
+
 module.exports = {
-  findAll: () => db('casos').select('*'),
-  findById: (id) => db('casos').where({ id }).first(),
-  create: (data) => db('casos').insert(data).returning('*'),
-  update: (id, data) => db('casos').where({ id }).update(data).returning('*'),
-  partialUpdate: (id, data) => db('casos').where({ id }).update(data).returning('*'),
-  remove: (id) => db('casos').where({ id }).del(),
+  findAll,
+  findById,
+  create,
+  update,
+  partialUpdate,
+  remove,
 };
